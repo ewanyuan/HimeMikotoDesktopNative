@@ -1,0 +1,46 @@
+# Build output and local IDE state
+bin/
+obj/
+.vs/
+.idea/
+
+# Local JavaScript dependencies and generated runtime bundle
+mmd-runtime/node_modules/
+web/mmd.bundle.js
+web/mmd.bundle.js.map
+web/mmd-spr.wasm
+
+# Third-party model, motion, music and media assets are not redistributed here.
+assets/motions/*
+!assets/motions/MOTION-CREDITS.md
+assets/music/*
+*.pmx
+*.obj
+*.vmd
+*.zip
+*.mp4
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.wav
+*.mp3
+*.ogg
+*.m4a
+*.aac
+*.flac
+
+# Local diagnostics, captures, generated reports and private notes
+acceptance-*
+diag-*
+menu-*.png
+native-*.png
+mmd-expression-audit-*
+mmd-expression-audit.json
+mmd-runtime-*
+zhixing-feedback-*.md
+
+# Local tool state
+*.user
+*.suo
+*.tmp

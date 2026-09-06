@@ -1,0 +1,159 @@
+<Application x:Class="HimeMikotoDesktopNative.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Startup="OnStartup">
+    <Application.Resources>
+        <SolidColorBrush x:Key="GameMenuBackground" Color="#FF11182C" />
+        <SolidColorBrush x:Key="GameMenuBorder" Color="#FF3B5A86" />
+        <SolidColorBrush x:Key="GameMenuText" Color="#FFE8F2FF" />
+        <SolidColorBrush x:Key="GameMenuMutedText" Color="#FF8FA4C7" />
+        <SolidColorBrush x:Key="GameMenuHighlight" Color="#FF243A60" />
+        <SolidColorBrush x:Key="GameMenuHighlightBorder" Color="#FF61D5FF" />
+        <SolidColorBrush x:Key="GameMenuAccent" Color="#FF6EF2D4" />
+        <SolidColorBrush x:Key="GameMenuSeparator" Color="#FF2B416A" />
+
+        <ControlTemplate x:Key="GameMenuItemTemplate" TargetType="{x:Type MenuItem}">
+            <Grid SnapsToDevicePixels="True">
+                <Border x:Name="ItemChrome"
+                        Margin="2"
+                        Padding="{TemplateBinding Padding}"
+                        Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        CornerRadius="6">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="28" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="22" />
+                        </Grid.ColumnDefinitions>
+
+                        <Border x:Name="AccentBar"
+                                Grid.Column="0"
+                                Width="3"
+                                Margin="-7,0,0,0"
+                                HorizontalAlignment="Left"
+                                Background="{StaticResource GameMenuAccent}"
+                                CornerRadius="2"
+                                Visibility="Collapsed" />
+                        <ContentPresenter Grid.Column="0"
+                                          ContentSource="Icon"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          Margin="0,0,6,0" />
+                        <TextBlock x:Name="CheckMark"
+                                   Grid.Column="0"
+                                   Text="✓"
+                                   FontSize="16"
+                                   FontWeight="Bold"
+                                   Foreground="{StaticResource GameMenuAccent}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   Visibility="Collapsed" />
+                        <ContentPresenter Grid.Column="1"
+                                          ContentSource="Header"
+                                          RecognizesAccessKey="True"
+                                          VerticalAlignment="Center"
+                                          TextElement.Foreground="{TemplateBinding Foreground}" />
+                        <TextBlock x:Name="Arrow"
+                                   Grid.Column="2"
+                                   Text="›"
+                                   FontSize="22"
+                                   Foreground="{StaticResource GameMenuMutedText}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   Visibility="Collapsed" />
+                    </Grid>
+                </Border>
+
+                <Popup x:Name="PART_Popup"
+                       AllowsTransparency="True"
+                       Focusable="False"
+                       IsOpen="{TemplateBinding IsSubmenuOpen}"
+                       Placement="Right"
+                       PlacementTarget="{Binding RelativeSource={RelativeSource TemplatedParent}}"
+                       PopupAnimation="None">
+                    <Border Background="{StaticResource GameMenuBackground}"
+                            BorderBrush="{StaticResource GameMenuBorder}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="4">
+                        <ScrollViewer CanContentScroll="True"
+                                      HorizontalScrollBarVisibility="Disabled"
+                                      VerticalScrollBarVisibility="Auto">
+                            <ItemsPresenter />
+                        </ScrollViewer>
+                    </Border>
+                </Popup>
+            </Grid>
+
+            <ControlTemplate.Triggers>
+                <Trigger Property="HasItems" Value="True">
+                    <Setter TargetName="Arrow" Property="Visibility" Value="Visible" />
+                </Trigger>
+                <Trigger Property="IsCheckable" Value="True">
+                    <Setter TargetName="CheckMark" Property="Visibility" Value="Visible" />
+                </Trigger>
+                <Trigger Property="IsChecked" Value="False">
+                    <Setter TargetName="CheckMark" Property="Visibility" Value="Collapsed" />
+                </Trigger>
+                <Trigger Property="IsHighlighted" Value="True">
+                    <Setter TargetName="ItemChrome" Property="Background" Value="{StaticResource GameMenuHighlight}" />
+                    <Setter TargetName="ItemChrome" Property="BorderBrush" Value="{StaticResource GameMenuHighlightBorder}" />
+                    <Setter TargetName="ItemChrome" Property="BorderThickness" Value="1" />
+                    <Setter TargetName="AccentBar" Property="Visibility" Value="Visible" />
+                    <Setter Property="Foreground" Value="{StaticResource GameMenuText}" />
+                </Trigger>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="ItemChrome" Property="Background" Value="{StaticResource GameMenuHighlight}" />
+                    <Setter TargetName="ItemChrome" Property="BorderBrush" Value="{StaticResource GameMenuHighlightBorder}" />
+                    <Setter TargetName="ItemChrome" Property="BorderThickness" Value="1" />
+                    <Setter TargetName="AccentBar" Property="Visibility" Value="Visible" />
+                    <Setter Property="Foreground" Value="{StaticResource GameMenuText}" />
+                </Trigger>
+                <Trigger Property="IsSubmenuOpen" Value="True">
+                    <Setter TargetName="ItemChrome" Property="Background" Value="{StaticResource GameMenuHighlight}" />
+                    <Setter TargetName="ItemChrome" Property="BorderBrush" Value="{StaticResource GameMenuHighlightBorder}" />
+                    <Setter TargetName="ItemChrome" Property="BorderThickness" Value="1" />
+                    <Setter TargetName="AccentBar" Property="Visibility" Value="Visible" />
+                    <Setter Property="Foreground" Value="{StaticResource GameMenuText}" />
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Foreground" Value="{StaticResource GameMenuMutedText}" />
+                    <Setter TargetName="ItemChrome" Property="Opacity" Value="0.55" />
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+
+        <Style TargetType="{x:Type ContextMenu}">
+            <Setter Property="Background" Value="{StaticResource GameMenuBackground}" />
+            <Setter Property="BorderBrush" Value="{StaticResource GameMenuBorder}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="4" />
+            <Setter Property="HasDropShadow" Value="True" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+        </Style>
+
+        <Style TargetType="{x:Type MenuItem}">
+            <Setter Property="FontFamily" Value="Segoe UI" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Foreground" Value="{StaticResource GameMenuText}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="10,7" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="MinHeight" Value="32" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template" Value="{StaticResource GameMenuItemTemplate}" />
+        </Style>
+
+        <Style TargetType="{x:Type Separator}">
+            <Setter Property="Height" Value="1" />
+            <Setter Property="Margin" Value="8,6" />
+            <Setter Property="Background" Value="{StaticResource GameMenuSeparator}" />
+        </Style>
+    </Application.Resources>
+</Application>

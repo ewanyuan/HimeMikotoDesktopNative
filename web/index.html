@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Hime &amp; Mikoto MMD Runtime</title>
+  <style>
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: transparent;
+    }
+
+    body {
+      user-select: none;
+      touch-action: none;
+    }
+
+    #renderCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      outline: none;
+      background: transparent;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="renderCanvas" tabindex="0"></canvas>
+  <script>
+    (() => {
+      const report = (kind, value) => {
+        if (window.chrome?.webview) {
+          window.chrome.webview.postMessage({
+            type: "runtime-error",
+            operation: kind,
+            message: String(value),
+            stack: ""
+          });
+        }
+      };
+      window.addEventListener("error", event => report("window-error", event.message || event.error));
+      window.addEventListener("unhandledrejection", event => report("unhandled-rejection", event.reason));
+    })();
+  </script>
+  <script src="./mmd.bundle.js"></script>
+</body>
+</html>
