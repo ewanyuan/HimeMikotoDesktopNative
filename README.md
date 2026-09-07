@@ -1,40 +1,103 @@
-# Hime & Mikoto Native Desktop Layer
+# Hime & Mikoto Desktop Pet
 
-这是不依赖 Godot 的透明桌宠宿主：宿主只负责桌面交互，人物由成熟的 Babylon.js + babylon-mmd 运行时加载和渲染。用户看到的是无边框、无方形背景的人物，不是一个普通窗口界面。
+Windows 桌面宠物：让 Hime 或 Mikoto 以透明、无边框的方式显示在桌面上。
 
-## 公开仓库范围
+A Windows desktop pet that displays Hime or Mikoto in a transparent, borderless desktop layer.
 
-本仓库公开的是桌宠宿主、菜单交互、MMD 运行时源码和构建脚本。PMX 模型、VMD 动作、音乐、视频、压缩包和生成截图不随仓库再分发；其中部分素材的原作者条款明确禁止再分发，具体来源和限制见 `assets/motions/MOTION-CREDITS.md`。
+## 这是什么 | What it is
 
-要在本地运行完整人物版本，需要自行准备有权使用的模型和动作素材：
+这是一个桌面宠物宿主。它用 Babylon.js + babylon-mmd 直接读取 PMX 模型和 VMD 动作，不使用 Godot，也不把模型转换成 OBJ/GLB。
 
-1. 将模型放在仓库同级的 `HimeMikotoDesktop/assets/Hime_&_Mikoto/` 目录中，保持 Hime / Mikoto 的目录结构。
-2. 将获准使用的动作放入 `assets/motions/`，音乐放入 `assets/music/`。
-3. 在 `mmd-runtime/` 执行 `pnpm install`，再运行 `run-native.ps1`。
+This is the desktop-pet host. It loads PMX models and VMD motions with Babylon.js + babylon-mmd. It does not use Godot or convert the models to OBJ/GLB.
 
-仓库目前没有附带开源许可证；公开仓库不等于授予代码再许可权。
+## 有什么 | Features
 
-- 同一时间只显示一个人物
-- 左键按住人物：拖动整个人物宿主，不会把人物拖出画面后消失
-- 右键人物：打开精简菜单，可切换 Hime / Mikoto、选择舞蹈、调整外观、切换始终置顶和关闭；模型没有提供的形变类别不会显示
-- 菜单语言读取 Windows 的首选界面语言；中文界面显示中文，其他界面显示英文
-- 默认始终置顶；也可以在右键菜单中关闭置顶，方便临时让出桌面空间
-- PMX 的网格、材质、纹理、骨骼、形变、刚体和关节由 babylon-mmd 解析，不再手工拼接贴图或重建人体网格
-- 使用 babylon-mmd 内置的单线程 WASM 物理运行时，模型自带的刚体/关节在运行时真正参与动画和物理计算
-- VMD 动作可以直接加载到模型上；右键菜单中包含已验收的本地动作，以及在缺少公开 VMD 或授权不允许嵌入时明确标记的待补动作。当前验收使用 `assets/motions/snow-halation-natsuki/nac_snow_halation/nac_snow_halation.vmd`
-- 腰振动作使用保留原始文件的加长前后往返版本 `assets/motions/waist-dance/waist-dance-loop.vmd`，从约 1.7 秒延长到约 13.3 秒，循环边界首尾姿势一致，减少短动作拼接造成的卡顿
-- 新增用户提供的 Rust Veins 腰振舞：菜单使用 `assets/motions/rust-veins/motion 1.vmd` 的身体动作，点击后立即开始；原包的 `motion 2.vmd`、面部/镜头 VMD 保留在同目录但不自动套用到 Hime / Mikoto，避免模型专用形变和镜头数据造成错配
-- 新增用户提供的 Erotic Hip-Shaking Duo 双人舞：菜单会同时加载 Hime 与 Mikoto 的 Left / Right 身体动作；原包中的面部、镜头和持杆附加动作保留在 `assets/motions/erotic-hip-duo/`，当前不自动套用，因为桌宠没有对应舞台和道具
-- Erotic Hip-Shaking Duo 原始 VMD 前约 14 秒是静止准备段，桌宠菜单从第 330 帧（约 11 秒）开始播放；双人仍从同一 VMD 时间点同步
-- 舞蹈音乐按动作 Key 自动读取 `assets/music/<动作Key>.<音频扩展名>`；项目不自动下载或重新分发歌曲。当前发行包不附带可听的舞蹈音乐；请放入自己有权使用的音频
-- 外观菜单中的肤色和形变采用单选圆点；眼睛表情和嘴部表情拆成两个可分别选择的子菜单，两个子菜单可以同时生效；肤色仅保留“默认 / 稍深 / 更深”三档，其中“默认”使用比旧默认更白一档的颜色；“全裸”直接放在外观菜单中，成人菜单只保留能明显看出变化的主形变，不显示内部左右控制项或细分技术项
-- 三档肤色会同时作用于身体和脸部基础皮肤材质，避免切换到较深档时脸和身体出现明显色差
-- 成人向菜单只展示模型实际提供并能从原始元数据识别的形变；原始资源没有独立道具模型，因此不会凭空生成道具
+- Hime / Mikoto 二选一显示，可在右键菜单切换。
+- 左键按住人物即可拖动；右键打开菜单。
+- 透明无边框，默认始终置顶。
+- 支持 VMD 舞蹈、循环播放、双人舞、肤色、眼睛表情和嘴部表情。
+- 不需要大模型，固定功能可离线运行；当前不包含聊天功能。
 
-## 关于大模型
+- Show Hime or Mikoto, and switch between them from the right-click menu.
+- Drag the pet with the left mouse button; open the menu with the right button.
+- Transparent and borderless; always-on-top by default.
+- Supports VMD dances, looping, dual-character dances, skin tones, eye expressions, and mouth expressions.
+- No LLM is required for the built-in features. Chat is not included yet.
 
-切换人物、外观、舞蹈、置顶和拖动等固定互动都在本地运行，不需要大模型，也可以离线使用。自然语言聊天、根据当天状态生成鼓励、长期记住偏好，以及更私密的陪伴对话，才需要接入大模型服务；接入前还需要明确服务商、密钥保存方式、发送哪些数据和删除策略。当前版本没有假装内置这些能力。
+## 先说下载 | Before downloading
 
-`PmxLoader.cs`、`PmxRenderer.cs` 和 `ObjLoader.cs` 是旧实验链的历史文件，当前项目已经将它们排除在编译之外。`mmd-runtime` 中的构建脚本会把 babylon-mmd 运行时代码和内置物理 WASM 打包到 `web` 目录。
+当前 GitHub 仓库是源码仓库，不是即开即用的发行包。仓库目前没有上传可直接运行的 exe，也没有上传 PMX 模型、VMD 动作或音乐。
 
-双击 `run-native.vbs` 启动。也可以在右键菜单中关闭，或按 `Esc` / `Alt+F4` 关闭。
+This GitHub repository currently contains source code, not a ready-to-run release. It does not include a downloadable executable, PMX models, VMD motions, or music.
+
+因此，别人只下载 GitHub ZIP，不能直接看到人物。即使只拿一个 exe 文件，也不够：程序还需要完整的运行时文件、模型资源和 WebView2。
+
+Downloading the GitHub ZIP alone will not show the pet. An exe file by itself is also not enough; the app needs its runtime files, model assets, and WebView2.
+
+## 从源码运行 | Run from source
+
+### 需要 | Requirements
+
+- Windows 10/11 x64
+- .NET 10 SDK
+- Node.js 和 pnpm
+- Microsoft Edge WebView2 Runtime
+- 你有权使用的 Hime / Mikoto PMX 模型及其贴图
+
+- Windows 10/11 x64
+- .NET 10 SDK
+- Node.js and pnpm
+- Microsoft Edge WebView2 Runtime
+- Hime / Mikoto PMX models and textures that you are allowed to use
+
+### 准备目录 | Prepare the folders
+
+把模型放在本仓库同级的 `HimeMikotoDesktop/assets/Hime_&_Mikoto/`，保留下面的文件名和目录结构：
+
+Place the models in the sibling folder `HimeMikotoDesktop/assets/Hime_&_Mikoto/`, keeping this layout:
+
+```text
+<parent-folder>/
+├─ HimeMikotoDesktop/
+│  └─ assets/Hime_&_Mikoto/
+│     ├─ Hime_260426/Hime.physics-stable.pmx
+│     └─ Mikoto_260303/Mikoto.physics-stable.pmx
+└─ HimeMikotoDesktopNative/
+```
+
+动作放入本仓库的 `assets/motions/`，音乐放入 `assets/music/`。动作和音乐都不是运行必需项；请只使用自己有权使用的素材。
+
+Put motions in `assets/motions/` and music in `assets/music/`. Motions and music are optional. Only use assets that you are authorized to use.
+
+### 启动 | Start
+
+在仓库目录执行：
+
+From the repository directory, run:
+
+```powershell
+cd mmd-runtime
+pnpm install
+cd ..
+powershell -ExecutionPolicy Bypass -File .\run-native.ps1
+```
+
+也可以双击 `run-native.vbs` 启动。
+
+You can also double-click `run-native.vbs`.
+
+## 操作 | Controls
+
+- 左键按住人物：拖动桌宠
+- 右键人物：打开菜单
+- `Esc` 或 `Alt+F4`：退出
+
+- Hold the left mouse button: drag the pet
+- Right-click the pet: open the menu
+- `Esc` or `Alt+F4`: exit
+
+## 资源与许可 | Assets and licensing
+
+代码和第三方模型、动作、音乐不是同一套许可。模型、动作和音乐不随本仓库再分发；使用前请阅读各自的原始说明和条款。动作来源记录见 [`assets/motions/MOTION-CREDITS.md`](assets/motions/MOTION-CREDITS.md)。本仓库当前未附带开源许可证。
+
+The code and third-party models, motions, and music do not share the same license. Third-party assets are not redistributed here; read their original terms before use. Motion credits are listed in [`assets/motions/MOTION-CREDITS.md`](assets/motions/MOTION-CREDITS.md). This repository currently has no open-source license.
