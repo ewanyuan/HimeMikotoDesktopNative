@@ -1,6 +1,7 @@
 # Build output and local IDE state
 bin/
 obj/
+dist/
 .vs/
 .idea/
 

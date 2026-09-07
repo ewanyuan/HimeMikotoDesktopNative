@@ -4,100 +4,69 @@ Windows 桌面宠物：让 Hime 或 Mikoto 以透明、无边框的方式显示�
 
 A Windows desktop pet that displays Hime or Mikoto in a transparent, borderless desktop layer.
 
-## 这是什么 | What it is
+## 普通用户 | For users
 
-这是一个桌面宠物宿主。它用 Babylon.js + babylon-mmd 直接读取 PMX 模型和 VMD 动作，不使用 Godot，也不把模型转换成 OBJ/GLB。
+拿到发行包后只需要：
 
-This is the desktop-pet host. It loads PMX models and VMD motions with Babylon.js + babylon-mmd. It does not use Godot or convert the models to OBJ/GLB.
+1. 解压整个压缩包；
+2. 双击 `HimeMikotoDesktopNative.exe`。
 
-## 有什么 | Features
+Keep the extracted folder together and double-click `HimeMikotoDesktopNative.exe`.
 
-- Hime / Mikoto 二选一显示，可在右键菜单切换。
-- 左键按住人物即可拖动；右键打开菜单。
-- 透明无边框，默认始终置顶。
-- 支持 VMD 舞蹈、循环播放、双人舞、肤色、眼睛表情和嘴部表情。
-- 不需要大模型，固定功能可离线运行；当前不包含聊天功能。
+GitHub 的 **Code → Download ZIP** 是源码，不是发行包，不能直接启动桌宠。发行包应包含 exe、运行库、`web` 和 `assets` 文件夹；不要只复制 exe。
 
-- Show Hime or Mikoto, and switch between them from the right-click menu.
+The GitHub source ZIP is not a ready-to-run release. A release folder must keep the exe, runtime files, `web`, and `assets` together.
+
+如果启动时提示缺少 WebView2，请安装 Microsoft Edge WebView2 Runtime 后重新启动。Windows 10/11 x64 是当前支持目标。
+
+If WebView2 is missing, install the Microsoft Edge WebView2 Runtime and start the app again. The current target is Windows 10/11 x64.
+
+## 功能 | Features
+
+- 右键切换 Hime / Mikoto、肤色和表情；
+- 左键按住人物拖动，右键打开菜单；
+- 透明无边框、默认置顶；
+- 支持 VMD 舞蹈、循环播放和双人舞；
+- 内置功能不需要大模型，当前没有聊天功能。
+
+- Switch characters, skin tones, and expressions from the right-click menu.
 - Drag the pet with the left mouse button; open the menu with the right button.
-- Transparent and borderless; always-on-top by default.
-- Supports VMD dances, looping, dual-character dances, skin tones, eye expressions, and mouth expressions.
-- No LLM is required for the built-in features. Chat is not included yet.
+- Transparent, borderless, and always-on-top by default.
+- Supports VMD dances, looping, and dual-character dances.
+- No LLM is needed for built-in features; chat is not included.
 
-## 先说下载 | Before downloading
+## 开发者创建便携包 | Build a portable package
 
-当前 GitHub 仓库是源码仓库，不是即开即用的发行包。仓库目前没有上传可直接运行的 exe，也没有上传 PMX 模型、VMD 动作或音乐。
-
-This GitHub repository currently contains source code, not a ready-to-run release. It does not include a downloadable executable, PMX models, VMD motions, or music.
-
-因此，别人只下载 GitHub ZIP，不能直接看到人物。即使只拿一个 exe 文件，也不够：程序还需要完整的运行时文件、模型资源和 WebView2。
-
-Downloading the GitHub ZIP alone will not show the pet. An exe file by itself is also not enough; the app needs its runtime files, model assets, and WebView2.
-
-## 从源码运行 | Run from source
-
-### 需要 | Requirements
-
-- Windows 10/11 x64
-- .NET 10 SDK
-- Node.js 和 pnpm
-- Microsoft Edge WebView2 Runtime
-- 你有权使用的 Hime / Mikoto PMX 模型及其贴图
-
-- Windows 10/11 x64
-- .NET 10 SDK
-- Node.js and pnpm
-- Microsoft Edge WebView2 Runtime
-- Hime / Mikoto PMX models and textures that you are allowed to use
-
-### 准备目录 | Prepare the folders
-
-把模型放在本仓库同级的 `HimeMikotoDesktop/assets/Hime_&_Mikoto/`，保留下面的文件名和目录结构：
-
-Place the models in the sibling folder `HimeMikotoDesktop/assets/Hime_&_Mikoto/`, keeping this layout:
-
-```text
-<parent-folder>/
-├─ HimeMikotoDesktop/
-│  └─ assets/Hime_&_Mikoto/
-│     ├─ Hime_260426/Hime.physics-stable.pmx
-│     └─ Mikoto_260303/Mikoto.physics-stable.pmx
-└─ HimeMikotoDesktopNative/
-```
-
-动作放入本仓库的 `assets/motions/`，音乐放入 `assets/music/`。动作和音乐都不是运行必需项；请只使用自己有权使用的素材。
-
-Put motions in `assets/motions/` and music in `assets/music/`. Motions and music are optional. Only use assets that you are authorized to use.
-
-### 启动 | Start
-
-在仓库目录执行：
-
-From the repository directory, run:
+先确保本机已经有 `.NET 10 SDK`、Node.js、pnpm 和 WebView2 Runtime。然后在本目录执行：
 
 ```powershell
-cd mmd-runtime
-pnpm install
-cd ..
-powershell -ExecutionPolicy Bypass -File .\run-native.ps1
+pnpm --dir .\mmd-runtime install
+powershell -ExecutionPolicy Bypass -File .\tools\package-portable.ps1 -IncludeLocalPrivateAssets
 ```
 
-也可以双击 `run-native.vbs` 启动。
+完成后，发行包和压缩包位于 `dist/portable` 与 `dist/portable.zip`。`-IncludeLocalPrivateAssets` 会把本机模型、动作和音乐复制进便携包，适合个人使用；不要未经许可把第三方素材上传或再分发。
 
-You can also double-click `run-native.vbs`.
+The `-IncludeLocalPrivateAssets` switch creates a personal package with local models, motions, and music. Do not upload or redistribute third-party assets without permission.
+
+不带这个选项也可以生成只有程序的包，但需要自行把有权使用的模型放入：
+
+```text
+assets/Hime_&_Mikoto/Hime_260426/Hime.physics-stable.pmx
+assets/Hime_&_Mikoto/Mikoto_260303/Mikoto.physics-stable.pmx
+```
 
 ## 操作 | Controls
 
-- 左键按住人物：拖动桌宠
-- 右键人物：打开菜单
-- `Esc` 或 `Alt+F4`：退出
+- 左键按住人物：拖动桌宠；
+- 右键人物：打开菜单；
+- `Esc` 或 `Alt+F4`：退出。
 
-- Hold the left mouse button: drag the pet
-- Right-click the pet: open the menu
-- `Esc` or `Alt+F4`: exit
+- Hold the left mouse button: drag the pet.
+- Right-click the pet: open the menu.
+- `Esc` or `Alt+F4`: exit.
 
 ## 资源与许可 | Assets and licensing
 
-代码和第三方模型、动作、音乐不是同一套许可。模型、动作和音乐不随本仓库再分发；使用前请阅读各自的原始说明和条款。动作来源记录见 [`assets/motions/MOTION-CREDITS.md`](assets/motions/MOTION-CREDITS.md)。本仓库当前未附带开源许可证。
+代码和第三方模型、动作、音乐不是同一套许可。模型、动作和音乐不随公开源码仓库再分发；使用前请阅读各自原始说明和条款。动作来源记录见 [`assets/motions/MOTION-CREDITS.md`](assets/motions/MOTION-CREDITS.md)。本仓库当前未附带开源许可证。
 
-The code and third-party models, motions, and music do not share the same license. Third-party assets are not redistributed here; read their original terms before use. Motion credits are listed in [`assets/motions/MOTION-CREDITS.md`](assets/motions/MOTION-CREDITS.md). This repository currently has no open-source license.
+Code and third-party models, motions, and music do not share one license. Third-party assets are not redistributed in the public source repository; read their original terms before use. Motion credits are listed in [`assets/motions/MOTION-CREDITS.md`](assets/motions/MOTION-CREDITS.md). This repository currently has no open-source license.

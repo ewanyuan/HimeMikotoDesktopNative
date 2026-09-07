@@ -286,8 +286,12 @@ public partial class MainWindow : Window
         _repositoryRoot = FindRepositoryRoot();
         _modelPaths =
         [
-            Path.Combine(_repositoryRoot, "HimeMikotoDesktop", "assets", "Hime_&_Mikoto", "Hime_260426", "Hime.physics-stable.pmx"),
-            Path.Combine(_repositoryRoot, "HimeMikotoDesktop", "assets", "Hime_&_Mikoto", "Mikoto_260303", "Mikoto.physics-stable.pmx"),
+            ResolveModelPath(
+                "Hime_260426",
+                "Hime.physics-stable.pmx"),
+            ResolveModelPath(
+                "Mikoto_260303",
+                "Mikoto.physics-stable.pmx"),
         ];
         _danceMotions =
         [
@@ -477,23 +481,20 @@ public partial class MainWindow : Window
 
     internal string GetDanceMotionPath(DanceMotionDefinition dance)
     {
-        return Path.Combine(_repositoryRoot, dance.RelativePath);
+        return ResolveProjectPath(dance.RelativePath);
     }
 
     internal string? GetSecondaryDanceMotionPath(DanceMotionDefinition dance)
     {
         return dance.SecondaryRelativePath is null
             ? null
-            : Path.Combine(_repositoryRoot, dance.SecondaryRelativePath);
+            : ResolveProjectPath(dance.SecondaryRelativePath);
     }
 
     internal string? GetDanceMusicPath(DanceMotionDefinition dance)
     {
-        var musicDirectory = Path.Combine(
-            _repositoryRoot,
-            "HimeMikotoDesktopNative",
-            "assets",
-            "music");
+        var musicDirectory = ResolveProjectPath(
+            Path.Combine("HimeMikotoDesktopNative", "assets", "music"));
         if (Directory.Exists(musicDirectory))
         {
             var musicPath = Directory.EnumerateFiles(musicDirectory)
@@ -552,8 +553,38 @@ public partial class MainWindow : Window
         {
             _lastRuntimeError = exception.ToString();
             Trace($"startup-failure:{exception}");
+            ShowStartupError(exception);
             Close();
         }
+    }
+
+    private void ShowStartupError(Exception exception)
+    {
+        var rootException = exception.GetBaseException();
+        var message = rootException switch
+        {
+            FileNotFoundException fileException
+                when fileException.FileName?.EndsWith(".pmx", StringComparison.OrdinalIgnoreCase) == true
+                => Text(
+                    "没有找到人物模型。请确认便携包内保留了 assets\\Hime_&_Mikoto 文件夹。",
+                    "The character model is missing. Make sure the portable package still contains the assets\\Hime_&_Mikoto folder."),
+            _ when rootException.Message.Contains("WebView2", StringComparison.OrdinalIgnoreCase)
+                => Text(
+                    "桌宠需要 Microsoft Edge WebView2 Runtime。请先安装它，再重新双击程序。",
+                    "This desktop pet needs the Microsoft Edge WebView2 Runtime. Install it, then start the app again."),
+            _ => Text(
+                "桌宠启动失败。请确认你运行的是完整文件夹里的 exe，而不是只复制了 exe 文件。\n\n"
+                    + rootException.Message,
+                "The desktop pet could not start. Make sure you are running the exe from the complete folder, not a copied exe file.\n\n"
+                    + rootException.Message),
+        };
+
+        MessageBox.Show(
+            this,
+            message,
+            Text("Hime & Mikoto 桌宠", "Hime & Mikoto Desktop Pet"),
+            MessageBoxButton.OK,
+            MessageBoxImage.Error);
     }
 
     public async Task InitializeRuntimeAsync()
@@ -589,7 +620,9 @@ public partial class MainWindow : Window
                 CoreWebView2HostResourceAccessKind.Allow);
             _navigationStarted = true;
             Trace("before-navigate");
-            core.Navigate("https://hime.local/HimeMikotoDesktopNative/web/index.html");
+            var webIndexPath = ResolveProjectPath(
+                Path.Combine("HimeMikotoDesktopNative", "web", "index.html"));
+            core.Navigate(ToRuntimeUrl(webIndexPath));
             Trace("after-navigate");
         }
 
@@ -1600,6 +1633,54 @@ public partial class MainWindow : Window
         return "https://hime.local/" + encodedPath;
     }
 
+    private string ResolveModelPath(string modelDirectory, string fileName)
+    {
+        var portablePath = Path.Combine(
+            _repositoryRoot,
+            "assets",
+            "Hime_&_Mikoto",
+            modelDirectory,
+            fileName);
+        if (File.Exists(portablePath))
+        {
+            return portablePath;
+        }
+
+        return Path.Combine(
+            _repositoryRoot,
+            "HimeMikotoDesktop",
+            "assets",
+            "Hime_&_Mikoto",
+            modelDirectory,
+            fileName);
+    }
+
+    private string ResolveProjectPath(string relativePath)
+    {
+        var sourceLayoutPath = Path.Combine(_repositoryRoot, relativePath);
+        if (File.Exists(sourceLayoutPath) || Directory.Exists(sourceLayoutPath))
+        {
+            return sourceLayoutPath;
+        }
+
+        const string nativeProjectPrefix = "HimeMikotoDesktopNative";
+        if (relativePath.Equals(nativeProjectPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return _repositoryRoot;
+        }
+
+        var portableRelativePath = relativePath.StartsWith(
+            nativeProjectPrefix + Path.DirectorySeparatorChar,
+            StringComparison.OrdinalIgnoreCase)
+            ? relativePath[(nativeProjectPrefix.Length + 1)..]
+            : relativePath.StartsWith(
+                nativeProjectPrefix + Path.AltDirectorySeparatorChar,
+                StringComparison.OrdinalIgnoreCase)
+                ? relativePath[(nativeProjectPrefix.Length + 1)..]
+                : relativePath;
+        return Path.Combine(_repositoryRoot, portableRelativePath);
+    }
+
     private string Text(string chinese, string english)
     {
         return _english ? english : chinese;
@@ -1957,6 +2038,21 @@ public partial class MainWindow : Window
             var directory = new DirectoryInfo(startingPoint);
             for (var depth = 0; depth < 12 && directory != null; depth++, directory = directory.Parent)
             {
+                var portableWebIndex = Path.Combine(directory.FullName, "web", "index.html");
+                var portableAssetMarker = Path.Combine(
+                    directory.FullName,
+                    "assets",
+                    "Hime_&_Mikoto");
+                var portablePackageMarker = Path.Combine(
+                    directory.FullName,
+                    "使用说明.txt");
+                if (File.Exists(portableWebIndex)
+                    && (Directory.Exists(portableAssetMarker)
+                        || File.Exists(portablePackageMarker)))
+                {
+                    return directory.FullName;
+                }
+
                 var nativeProject = Path.Combine(directory.FullName, "HimeMikotoDesktopNative");
                 var assetMarker = Path.Combine(
                     directory.FullName,
