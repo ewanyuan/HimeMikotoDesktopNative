@@ -4,18 +4,24 @@ Windows 桌面宠物：让 Hime 或 Mikoto 以透明、无边框的方式显示�
 
 A Windows desktop pet that displays Hime or Mikoto in a transparent, borderless desktop layer.
 
-## 普通用户 | For users
+## 下载与启动 | Download and start
 
-拿到发行包后只需要：
+### 当前发行包 | Current release
+
+现在已经有可直接运行的 [v0.1.0 便携版压缩包](https://github.com/ewanyuan/HimeMikotoDesktopNative/releases/download/v0.1.0/portable.zip)。这里说的“发行包”，是作者把 exe、运行库、`web` 和 `assets` 一起打好的完整压缩包，不是 GitHub 的源码 ZIP。
+
+The ready-to-run [v0.1.0 portable package](https://github.com/ewanyuan/HimeMikotoDesktopNative/releases/download/v0.1.0/portable.zip) is now available. A “release package” means one complete archive containing the exe, runtime files, `web`, and `assets`—not GitHub's source ZIP.
+
+下载后：
 
 1. 解压整个压缩包；
 2. 双击 `HimeMikotoDesktopNative.exe`。
 
-Keep the extracted folder together and double-click `HimeMikotoDesktopNative.exe`.
+After downloading, extract the whole archive and double-click `HimeMikotoDesktopNative.exe`.
 
-GitHub 的 **Code → Download ZIP** 是源码，不是发行包，不能直接启动桌宠。发行包应包含 exe、运行库、`web` 和 `assets` 文件夹；不要只复制 exe。
+不要下载 **Code → Download ZIP** 来启动桌宠；那是源码。也不要只复制 exe 文件，便携包里的文件必须保留在一起。
 
-The GitHub source ZIP is not a ready-to-run release. A release folder must keep the exe, runtime files, `web`, and `assets` together.
+Do not use **Code → Download ZIP** to start the pet; that is source code. Do not copy only the exe—the portable package must remain together.
 
 如果启动时提示缺少 WebView2，请安装 Microsoft Edge WebView2 Runtime 后重新启动。Windows 10/11 x64 是当前支持目标。
 
