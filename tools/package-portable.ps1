@@ -42,6 +42,7 @@ $projectPath = Join-Path $projectDirectory "HimeMikotoDesktopNative.csproj"
     --runtime win-x64 `
     --self-contained true `
     --output $OutputDirectory `
+    --no-restore `
     --nologo `
     -p:DebugType=None `
     -p:DebugSymbols=false

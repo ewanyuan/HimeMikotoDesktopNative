@@ -269,6 +269,7 @@ public partial class MainWindow : Window
         };
     private TaskCompletionSource<JsonElement>? _pendingMessage;
     private string? _pendingMessageType;
+    private string? _pendingRequestId;
     private string? _lastRuntimeError;
     private int _currentCharacter;
     private bool _browserInitialized;
@@ -296,16 +297,47 @@ public partial class MainWindow : Window
         _danceMotions =
         [
             new(
+                "love-scream",
+                "爱♡スクリ〜ム！",
+                "Ai♡Scream!",
+                Path.Combine(
+                    "HimeMikotoDesktopNative",
+                    "assets",
+                    "motions",
+                    "requested",
+                    "love-scream",
+                    "love-scream.vmd"),
+                UsageNote: "用户指定来源：ss46752642；原 BowlRoll 358490 动作页需要账号登录后下载。",
+                UnavailableNote: "动作文件尚未放入本地目录；没有用其它动作冒充。"),
+            new(
                 "snow-halation",
-                "Snow Halation",
-                "Snow Halation",
+                "大好きなSnow halation",
+                "Daisuki na Snow halation",
                 Path.Combine(
                     "HimeMikotoDesktopNative",
                     "assets",
                     "motions",
                     "snow-halation-natsuki",
                     "nac_snow_halation",
-                    "nac_snow_halation.vmd")),
+                    "nac_snow_halation.vmd"),
+                UsageNote: "用户指定来源：ss46474765；沿用本机已核验的 Snow halation VMD。"),
+            new(
+                "sparkle-dual",
+                "アニサマ2022「Sparkle」",
+                "Animelo Summer Live 2022 \"Sparkle\"",
+                Path.Combine(
+                    "HimeMikotoDesktopNative",
+                    "assets",
+                    "motions",
+                    "sparkle-dual",
+                    "sparkle-left.vmd"),
+                Path.Combine(
+                    "HimeMikotoDesktopNative",
+                    "assets",
+                    "motions",
+                    "sparkle-dual",
+                    "sparkle-right.vmd"),
+                UsageNote: "用户指定来源：ss46421758；BowlRoll 284475，动作作者：松山じろべえ。Hime 使用左位动作，Mikoto 使用右位动作；允许修改，但禁止未经许可再分发和商业使用。"),
             new(
                 "helltaker",
                 "Helltaker（循环舞）",
@@ -416,19 +448,6 @@ public partial class MainWindow : Window
                     "motion 1.vmd"),
                 UsageNote: "动作作者 TottyMMD（totozoMMD）；仅作本机使用，使用前请保留随包 readme.txt 并自行确认发布范围。"),
             new(
-                "tsuyoi",
-                "つよっ！（单人）",
-                "Tsuyoi! (solo)",
-                Path.Combine(
-                    "HimeMikotoDesktopNative",
-                    "assets",
-                    "motions",
-                    "requested",
-                    "tsuyoi",
-                    "tsuyoi.vmd"),
-                UsageNote: "非商业使用；禁止 R18、再分发或转交动作文件。",
-                UnavailableNote: "动作文件缺失"),
-            new(
                 "inmu-king",
                 "INMU KING（动作待补）",
                 "INMU KING (motion pending)",
@@ -440,19 +459,6 @@ public partial class MainWindow : Window
                     "inmu-king",
                     "INMU-KING.vmd"),
                 UnavailableNote: "原视频未公开可核验的 VMD 动作文件，暂不伪造动作。"),
-            new(
-                "tick-trick",
-                "Tick-Trick（Rick式）",
-                "Tick-Trick (Rick)",
-                Path.Combine(
-                    "HimeMikotoDesktopNative",
-                    "assets",
-                    "motions",
-                    "requested",
-                    "tick-trick",
-                    "Tick-Trick.vmd"),
-                UsageNote: "非商业、非 R15；禁止再分发，且需保留乐曲作者前線的署名。",
-                UnavailableNote: "动作文件缺失"),
             new(
                 "oppai-fukkireta",
                 "Oppai Fukkireta（授权待定）",
@@ -519,10 +525,11 @@ public partial class MainWindow : Window
     {
         var musicPath = GetDanceMusicPath(dance);
         var messageType = musicPath is null ? "music-cleared" : "music-loaded";
-        var messageTask = WaitForMessageAsync(messageType);
+        var requestId = NewRequestId();
+        var messageTask = WaitForMessageAsync(messageType, requestId);
         if (musicPath is null)
         {
-            PostCommand(new { type = "clear-music" });
+            PostCommand(new { type = "clear-music", requestId });
         }
         else
         {
@@ -530,6 +537,7 @@ public partial class MainWindow : Window
             {
                 type = "load-music",
                 url = ToRuntimeUrl(musicPath),
+                requestId,
             });
         }
 
@@ -548,6 +556,7 @@ public partial class MainWindow : Window
             await InitializeRuntimeAsync();
             await LoadCharacterAsync(_currentCharacter);
             ActivatePetFocus();
+            _ = PreloadSecondaryCharacterWhenIdleAsync();
         }
         catch (Exception exception)
         {
@@ -555,6 +564,28 @@ public partial class MainWindow : Window
             Trace($"startup-failure:{exception}");
             ShowStartupError(exception);
             Close();
+        }
+    }
+
+    private async Task PreloadSecondaryCharacterWhenIdleAsync()
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(2.5));
+            if (_closing
+                || _dualMode
+                || _currentCharacter != 0
+                || !_switchCharacterMenu.IsEnabled
+                || !_danceMenu.IsEnabled)
+            {
+                return;
+            }
+
+            BeginSecondaryCharacterPreload(0, 1);
+        }
+        catch
+        {
+            // Idle preloading is an optimization and must never affect startup.
         }
     }
 
@@ -644,18 +675,63 @@ public partial class MainWindow : Window
             throw new FileNotFoundException("The PMX model was not found.", path);
         }
 
-        _currentCharacter = characterIndex;
-        var messageTask = WaitForMessageAsync("model-loaded");
+        var requestId = NewRequestId();
+        var messageTask = WaitForMessageAsync("model-loaded", requestId);
         PostCommand(new
         {
             type = "load-character",
             index = characterIndex,
             url = ToRuntimeUrl(path),
+            requestId,
         });
         var message = await messageTask;
         PopulateMorphMenus(message);
+        _currentCharacter = characterIndex;
         _dualMode = false;
         Width = SinglePetWidth;
+        _pauseDanceMenu.IsEnabled = false;
+        _appearanceMenu.IsEnabled = true;
+        _resetMorphsMenu.IsEnabled = true;
+        await ApplyFullNudeIfNeededAsync();
+        return message;
+    }
+
+    public async Task<JsonElement> LoadSecondaryCharacterAsync(int primaryIndex, int secondaryIndex)
+    {
+        if (primaryIndex < 0 || primaryIndex >= _modelPaths.Length)
+        {
+            throw new ArgumentOutOfRangeException(nameof(primaryIndex));
+        }
+        if (secondaryIndex < 0 || secondaryIndex >= _modelPaths.Length)
+        {
+            throw new ArgumentOutOfRangeException(nameof(secondaryIndex));
+        }
+        if (_dualMode || _currentCharacter != primaryIndex)
+        {
+            throw new InvalidOperationException("The incremental dual-character path requires the requested primary character to be active.");
+        }
+
+        var secondaryPath = _modelPaths[secondaryIndex];
+        if (!File.Exists(secondaryPath))
+        {
+            throw new FileNotFoundException("The secondary PMX model was not found.", secondaryPath);
+        }
+
+        var requestId = NewRequestId();
+        var messageTask = WaitForMessageAsync("dual-models-loaded", requestId);
+        PostCommand(new
+        {
+            type = "load-secondary-character",
+            primaryIndex,
+            secondaryIndex,
+            secondaryUrl = ToRuntimeUrl(secondaryPath),
+            requestId,
+        });
+        var message = await messageTask;
+        PopulateMorphMenus(message.GetProperty("primary"));
+        _currentCharacter = primaryIndex;
+        _dualMode = true;
+        Width = DualPetWidth;
         _pauseDanceMenu.IsEnabled = false;
         _appearanceMenu.IsEnabled = true;
         _resetMorphsMenu.IsEnabled = true;
@@ -670,13 +746,15 @@ public partial class MainWindow : Window
             throw new FileNotFoundException("The VMD motion was not found.", path);
         }
 
-        var messageTask = WaitForMessageAsync("motion-loaded");
+        var requestId = NewRequestId();
+        var messageTask = WaitForMessageAsync("motion-loaded", requestId);
         PostCommand(new
         {
             type = "load-motion",
             name,
             url = ToRuntimeUrl(path),
             loop,
+            requestId,
         });
         return await messageTask;
     }
@@ -703,7 +781,8 @@ public partial class MainWindow : Window
             throw new FileNotFoundException("The secondary PMX model was not found.", secondaryPath);
         }
 
-        var messageTask = WaitForMessageAsync("dual-models-loaded");
+        var requestId = NewRequestId();
+        var messageTask = WaitForMessageAsync("dual-models-loaded", requestId);
         PostCommand(new
         {
             type = "load-dual-character",
@@ -711,6 +790,7 @@ public partial class MainWindow : Window
             primaryUrl = ToRuntimeUrl(primaryPath),
             secondaryIndex,
             secondaryUrl = ToRuntimeUrl(secondaryPath),
+            requestId,
         });
         var message = await messageTask;
         PopulateMorphMenus(message.GetProperty("primary"));
@@ -739,7 +819,8 @@ public partial class MainWindow : Window
             throw new FileNotFoundException("The secondary VMD motion was not found.", secondaryPath);
         }
 
-        var messageTask = WaitForMessageAsync("dual-motion-loaded");
+        var requestId = NewRequestId();
+        var messageTask = WaitForMessageAsync("dual-motion-loaded", requestId);
         PostCommand(new
         {
             type = "load-dual-motion",
@@ -747,37 +828,92 @@ public partial class MainWindow : Window
             primaryUrl = ToRuntimeUrl(primaryPath),
             secondaryUrl = ToRuntimeUrl(secondaryPath),
             startFrame,
+            requestId,
         });
         return await messageTask;
     }
 
+    internal void BeginDualMotionPreload(DanceMotionDefinition dance)
+    {
+        if (!dance.IsDual)
+        {
+            return;
+        }
+
+        var secondaryPath = GetSecondaryDanceMotionPath(dance)
+            ?? throw new InvalidDataException("The dual dance has no secondary VMD path.");
+        var primaryPath = GetDanceMotionPath(dance);
+        if (!File.Exists(primaryPath) || !File.Exists(secondaryPath))
+        {
+            return;
+        }
+
+        PostCommand(new
+        {
+            type = "preload-dual-motion",
+            name = dance.Key,
+            primaryUrl = ToRuntimeUrl(primaryPath),
+            secondaryUrl = ToRuntimeUrl(secondaryPath),
+        });
+    }
+
+    internal void BeginSecondaryCharacterPreload(int primaryIndex, int secondaryIndex)
+    {
+        if (primaryIndex < 0 || primaryIndex >= _modelPaths.Length
+            || secondaryIndex < 0 || secondaryIndex >= _modelPaths.Length
+            || _dualMode
+            || _currentCharacter != primaryIndex)
+        {
+            return;
+        }
+
+        var secondaryPath = _modelPaths[secondaryIndex];
+        if (!File.Exists(secondaryPath))
+        {
+            return;
+        }
+
+        PostCommand(new
+        {
+            type = "preload-secondary-character",
+            primaryIndex,
+            secondaryIndex,
+            secondaryUrl = ToRuntimeUrl(secondaryPath),
+        });
+    }
+
     public async Task<JsonElement> SetSkinToneAsync(string tone)
     {
-        var messageTask = WaitForMessageAsync("skin-tone-updated");
+        var requestId = NewRequestId();
+        var messageTask = WaitForMessageAsync("skin-tone-updated", requestId);
         PostCommand(new
         {
             type = "set-skin-tone",
             tone,
+            requestId,
         });
         return await messageTask;
     }
 
     public async Task<JsonElement> SetMorphAsync(int index, double weight)
     {
-        var messageTask = WaitForMessageAsync("morph-updated");
+        var requestId = NewRequestId();
+        var messageTask = WaitForMessageAsync("morph-updated", requestId);
         PostCommand(new
         {
             type = "set-morph",
             index,
             weight,
+            requestId,
         });
         return await messageTask;
     }
 
     public async Task<JsonElement> ResetMorphsAsync()
     {
-        var messageTask = WaitForMessageAsync("morphs-reset");
-        PostCommand(new { type = "reset-morphs" });
+        var requestId = NewRequestId();
+        var messageTask = WaitForMessageAsync("morphs-reset", requestId);
+        PostCommand(new { type = "reset-morphs", requestId });
         return await messageTask;
     }
 
@@ -880,7 +1016,10 @@ public partial class MainWindow : Window
                 Trace($"runtime-error:{_lastRuntimeError}");
                 var exception = new InvalidOperationException(_lastRuntimeError);
                 _runtimeReady.TrySetException(exception);
-                _pendingMessage?.TrySetException(exception);
+                if (PendingRequestMatches(root))
+                {
+                    _pendingMessage?.TrySetException(exception);
+                }
                 return;
             }
 
@@ -890,7 +1029,8 @@ public partial class MainWindow : Window
                 return;
             }
 
-            if (string.Equals(type, _pendingMessageType, StringComparison.Ordinal))
+            if (string.Equals(type, _pendingMessageType, StringComparison.Ordinal)
+                && PendingRequestMatches(root))
             {
                 _pendingMessage?.TrySetResult(root.Clone());
             }
@@ -898,11 +1038,30 @@ public partial class MainWindow : Window
         catch (Exception exception)
         {
             _lastRuntimeError = exception.ToString();
-            _pendingMessage?.TrySetException(exception);
+            if (_pendingMessage is not null)
+            {
+                _pendingMessage?.TrySetException(exception);
+            }
         }
     }
 
-    private async Task<JsonElement> WaitForMessageAsync(string type)
+    private static string NewRequestId() => Guid.NewGuid().ToString("N");
+
+    private bool PendingRequestMatches(JsonElement root)
+    {
+        if (_pendingMessage is null || _pendingRequestId is null)
+        {
+            return true;
+        }
+
+        return root.TryGetProperty("requestId", out var requestIdElement)
+            && string.Equals(
+                requestIdElement.GetString(),
+                _pendingRequestId,
+                StringComparison.Ordinal);
+    }
+
+    private async Task<JsonElement> WaitForMessageAsync(string type, string? requestId = null)
     {
         if (_pendingMessage != null)
         {
@@ -912,6 +1071,7 @@ public partial class MainWindow : Window
         var source = new TaskCompletionSource<JsonElement>(TaskCreationOptions.RunContinuationsAsynchronously);
         _pendingMessage = source;
         _pendingMessageType = type;
+        _pendingRequestId = requestId;
         try
         {
             return await source.Task.WaitAsync(TimeSpan.FromSeconds(60));
@@ -922,6 +1082,7 @@ public partial class MainWindow : Window
             {
                 _pendingMessage = null;
                 _pendingMessageType = null;
+                _pendingRequestId = null;
             }
         }
     }
@@ -1048,22 +1209,58 @@ public partial class MainWindow : Window
     private void BuildDanceMenu()
     {
         var availableCount = 0;
-        foreach (var dance in _danceMotions)
+        var visibleDances = _danceMotions
+            .Where(dance =>
+            {
+                var path = GetDanceMotionPath(dance);
+                var secondaryPath = GetSecondaryDanceMotionPath(dance);
+                var isAvailable = File.Exists(path)
+                    && (secondaryPath is null || File.Exists(secondaryPath));
+                return isAvailable || IsNewDance(dance);
+            })
+            .OrderByDescending(IsNewDance)
+            .ToArray();
+        var newDanceCount = _danceMotions.Count(IsNewDance);
+        var newDanceHeaderAdded = false;
+        var existingDanceSeparatorAdded = false;
+
+        foreach (var dance in visibleDances)
         {
             var path = GetDanceMotionPath(dance);
             var secondaryPath = GetSecondaryDanceMotionPath(dance);
-            var musicPath = GetDanceMusicPath(dance);
             var isAvailable = File.Exists(path)
                 && (secondaryPath is null || File.Exists(secondaryPath));
+            var musicPath = GetDanceMusicPath(dance);
+            var isNewDance = IsNewDance(dance);
+            if (isNewDance && !newDanceHeaderAdded)
+            {
+                AddDisabledItem(
+                    _danceMenu,
+                    Text($"新增舞蹈（{newDanceCount}）", $"New dances ({newDanceCount})"));
+                newDanceHeaderAdded = true;
+            }
+            else if (!isNewDance && newDanceHeaderAdded && !existingDanceSeparatorAdded)
+            {
+                _danceMenu.Items.Add(new Separator());
+                existingDanceSeparatorAdded = true;
+            }
+
             if (!isAvailable)
             {
+                var unavailableHeader = (isNewDance ? Text("【新增】", "[NEW] ") : string.Empty)
+                    + Text(dance.ChineseName, dance.EnglishName)
+                    + Text("（动作文件待下载）", " (motion file pending)");
+                var notes = new[] { dance.UsageNote, dance.UnavailableNote }
+                    .Where(note => !string.IsNullOrWhiteSpace(note));
+                AddDisabledItem(_danceMenu, unavailableHeader, string.Join(Environment.NewLine, notes));
                 continue;
             }
 
             availableCount++;
             var item = new MenuItem
             {
-                Header = Text(dance.ChineseName, dance.EnglishName)
+                Header = (isNewDance ? Text("【新增】", "[NEW] ") : string.Empty)
+                    + Text(dance.ChineseName, dance.EnglishName)
                     + (musicPath is null ? string.Empty : Text("（有本地音乐）", " (local music)")),
                 Tag = dance,
                 IsEnabled = true,
@@ -1105,6 +1302,11 @@ public partial class MainWindow : Window
         {
             AddDisabledItem(_danceMenu, Text("暂无可用舞蹈", "No dance motion is available"));
         }
+    }
+
+    private static bool IsNewDance(DanceMotionDefinition dance)
+    {
+        return dance.Key is "love-scream" or "snow-halation" or "sparkle-dual";
     }
 
     private async void OnSkinToneMenuClick(object? sender, RoutedEventArgs e)
@@ -1448,6 +1650,7 @@ public partial class MainWindow : Window
         }
 
         _danceMenu.IsEnabled = false;
+        _switchCharacterMenu.IsEnabled = false;
         try
         {
             JsonElement motion;
@@ -1455,9 +1658,17 @@ public partial class MainWindow : Window
             {
                 var secondaryPath = GetSecondaryDanceMotionPath(dance)
                     ?? throw new InvalidDataException("The dual dance has no secondary VMD path.");
+                BeginDualMotionPreload(dance);
                 if (!_dualMode)
                 {
-                    await LoadDualCharactersAsync(0, 1);
+                    if (_currentCharacter == 0)
+                    {
+                        await LoadSecondaryCharacterAsync(0, 1);
+                    }
+                    else
+                    {
+                        await LoadDualCharactersAsync(0, 1);
+                    }
                 }
 
                 motion = await LoadDualMotionAsync(
@@ -1507,6 +1718,7 @@ public partial class MainWindow : Window
         finally
         {
             _danceMenu.IsEnabled = true;
+            _switchCharacterMenu.IsEnabled = true;
         }
     }
 
@@ -1524,6 +1736,12 @@ public partial class MainWindow : Window
 
     private async Task SwitchCharacterAsync()
     {
+        if (!_danceMenu.IsEnabled)
+        {
+            return;
+        }
+
+        _switchCharacterMenu.IsEnabled = false;
         try
         {
             await LoadCharacterAsync((_currentCharacter + 1) % _modelPaths.Length);
@@ -1531,6 +1749,10 @@ public partial class MainWindow : Window
         catch (Exception exception)
         {
             _lastRuntimeError = exception.ToString();
+        }
+        finally
+        {
+            _switchCharacterMenu.IsEnabled = true;
         }
     }
 
@@ -1745,12 +1967,13 @@ public partial class MainWindow : Window
             && activeIndex == index;
     }
 
-    private void AddDisabledItem(MenuItem parent, string header)
+    private void AddDisabledItem(MenuItem parent, string header, string? toolTip = null)
     {
         var item = new MenuItem
         {
             Header = header,
             IsEnabled = false,
+            ToolTip = string.IsNullOrWhiteSpace(toolTip) ? null : toolTip,
         };
         ConfigureMenuItem(item);
         parent.Items.Add(item);

@@ -56,8 +56,14 @@ const state = {
   model: null,
   secondaryContainer: null,
   secondaryModel: null,
+  preloadedSecondary: null,
+  secondaryPreloadPromise: null,
+  secondaryPreloadIndex: -1,
+  secondaryPreloadUrl: "",
   modelIndex: -1,
   secondaryModelIndex: -1,
+  modelUrl: "",
+  secondaryModelUrl: "",
   motionHandle: null,
   secondaryMotionHandle: null,
   motionCache: new Map(),
@@ -93,7 +99,7 @@ function updateDesktopToneColors(preset) {
     Math.min(1, preset.b * 1.12));
 }
 
-function setDesktopBodyTone(value) {
+function setDesktopBodyTone(value, requestId) {
   const requestedTone = String(value ?? "brighter").toLowerCase();
   const tone = Object.hasOwn(desktopBodyTonePresets, requestedTone)
     ? requestedTone
@@ -102,7 +108,7 @@ function setDesktopBodyTone(value) {
   updateDesktopToneColors(preset);
   desktopBodyTone = tone;
   applyDesktopPetMaterialPresentation();
-  post("skin-tone-updated", { tone: desktopBodyTone });
+  post("skin-tone-updated", { tone: desktopBodyTone, requestId });
 }
 
 function isDesktopSkinMaterial(material) {
@@ -237,7 +243,7 @@ function waitForAudioMetadata(player) {
   });
 }
 
-async function loadMusic(url) {
+async function loadMusic(url, requestId) {
   if (!runtime || !audioPlayer) {
     throw new Error("The MMD audio player is still initializing.");
   }
@@ -250,6 +256,7 @@ async function loadMusic(url) {
   if (!normalizedUrl) {
     post("music-cleared", {
       enabled: false,
+      requestId,
     });
     return;
   }
@@ -261,6 +268,7 @@ async function loadMusic(url) {
     enabled: true,
     url: normalizedUrl,
     duration,
+    requestId,
   });
 }
 
@@ -506,6 +514,8 @@ function disposeCurrentModel() {
 
   runtime?.pauseAnimation();
 
+  disposePreloadedSecondary();
+
   if (runtime) {
     if (state.model) {
       runtime.destroyMmdModel(state.model);
@@ -529,6 +539,11 @@ function disposeCurrentModel() {
   state.secondaryMotionHandle = null;
   state.modelIndex = -1;
   state.secondaryModelIndex = -1;
+  state.modelUrl = "";
+  state.secondaryModelUrl = "";
+  state.secondaryPreloadPromise = null;
+  state.secondaryPreloadIndex = -1;
+  state.secondaryPreloadUrl = "";
 }
 
 function describeMorphs(metadata) {
@@ -620,7 +635,7 @@ function applyInitialMaterialVisibility(meshes) {
   }
 }
 
-async function loadCharacter(index, url) {
+async function loadCharacter(index, url, requestId) {
   if (!runtime) {
     throw new Error("The MMD runtime is still initializing.");
   }
@@ -631,14 +646,15 @@ async function loadCharacter(index, url) {
   state.container = loaded.container;
   state.model = loaded.model;
   state.modelIndex = index;
+  state.modelUrl = loaded.url;
   setCameraForModel(loaded.container.meshes);
   startBlink(loaded.metadata.morphs.map((morph, morphIndex) => ({ ...morph, index: morphIndex })));
 
   await new Promise((resolve) => requestAnimationFrame(resolve));
-  post("model-loaded", describeLoadedCharacter(loaded));
+  post("model-loaded", { ...describeLoadedCharacter(loaded), requestId });
 }
 
-async function loadMotion(name, url, loop = false) {
+async function loadMotion(name, url, loop = false, requestId) {
   if (!runtime || !vmdLoader || !state.model) {
     throw new Error("Load a character before loading a motion.");
   }
@@ -668,10 +684,11 @@ async function loadMotion(name, url, loop = false) {
     loop: state.loopCurrentMotion,
     rootOffset,
     visibilityTrackNormalized,
+    requestId,
   });
 }
 
-async function loadDualCharacters(primaryIndex, primaryUrl, secondaryIndex, secondaryUrl) {
+async function loadDualCharacters(primaryIndex, primaryUrl, secondaryIndex, secondaryUrl, requestId) {
   if (!runtime) {
     throw new Error("The MMD runtime is still initializing.");
   }
@@ -699,6 +716,8 @@ async function loadDualCharacters(primaryIndex, primaryUrl, secondaryIndex, seco
   state.secondaryModel = secondary.model;
   state.modelIndex = primaryIndex;
   state.secondaryModelIndex = secondaryIndex;
+  state.modelUrl = primary.url;
+  state.secondaryModelUrl = secondary.url;
   // The dance leans both performers outward during its first phrase. Keep a
   // little more camera margin than the static model bounds require so hands
   // and feet remain inside the portrait desktop-pet canvas while dancing.
@@ -709,10 +728,154 @@ async function loadDualCharacters(primaryIndex, primaryUrl, secondaryIndex, seco
   post("dual-models-loaded", {
     primary: describeLoadedCharacter(primary),
     secondary: describeLoadedCharacter(secondary),
+    requestId,
   });
 }
 
-async function loadDualMotion(name, primaryUrl, secondaryUrl, startFrame = 0) {
+async function loadSecondaryCharacter(primaryIndex, secondaryIndex, secondaryUrl, requestId) {
+  if (!runtime) {
+    throw new Error("The MMD runtime is still initializing.");
+  }
+  if (!state.model || !state.container || state.modelIndex !== primaryIndex) {
+    throw new Error("The requested primary character is not loaded.");
+  }
+
+  const normalizedSecondaryUrl = normalizeModelUrl(secondaryUrl);
+  if (state.secondaryModel && state.secondaryModelIndex === secondaryIndex
+      && state.secondaryModelUrl === normalizedSecondaryUrl) {
+    const primaryRootMesh = state.container.meshes.find((mesh) => MmdMesh.isMmdSkinnedMesh(mesh));
+    if (primaryRootMesh) {
+      primaryRootMesh.position.x = -2.05;
+    }
+    const secondaryRootMesh = state.secondaryContainer?.meshes.find(
+      (mesh) => MmdMesh.isMmdSkinnedMesh(mesh));
+    if (secondaryRootMesh) {
+      secondaryRootMesh.position.x = 2.05;
+    }
+    setCameraForModel([
+      ...state.container.meshes,
+      ...(state.secondaryContainer?.meshes ?? []),
+    ], 1.72);
+    post("dual-models-loaded", {
+      primary: describeActiveCharacter(state.modelIndex, state.modelUrl, state.container, state.model),
+      secondary: describeActiveCharacter(
+        state.secondaryModelIndex,
+        state.secondaryModelUrl,
+        state.secondaryContainer,
+        state.secondaryModel,
+      ),
+      requestId,
+    });
+    return;
+  }
+
+  runtime.pauseAnimation();
+  const primaryModelAtStart = state.model;
+  const primaryContainerAtStart = state.container;
+  const preloadedMatches = state.preloadedSecondary
+    && state.preloadedSecondary.index === secondaryIndex
+    && state.preloadedSecondary.url === normalizedSecondaryUrl;
+  const preloadInProgress = state.secondaryPreloadPromise
+    && state.secondaryPreloadIndex === secondaryIndex
+    && state.secondaryPreloadUrl === normalizedSecondaryUrl;
+  let secondary = preloadedMatches
+    ? state.preloadedSecondary
+    : preloadInProgress
+      ? await state.secondaryPreloadPromise
+      : await loadCharacterAsset(secondaryIndex, normalizedSecondaryUrl);
+  if (!secondary) {
+    throw new Error("The secondary character preload did not produce a model.");
+  }
+  try {
+    if (state.model !== primaryModelAtStart || state.container !== primaryContainerAtStart) {
+      throw new Error("The active primary character changed while loading the secondary character.");
+    }
+
+    const primaryRootMesh = state.container.meshes.find((mesh) => MmdMesh.isMmdSkinnedMesh(mesh));
+    if (!primaryRootMesh) {
+      throw new Error("The loaded primary character has no MMD skinned mesh.");
+    }
+
+    primaryRootMesh.position.x = -2.05;
+    secondary.rootMesh.position.x = 2.05;
+    if (state.preloadedSecondary && state.preloadedSecondary !== secondary) {
+      disposePreloadedSecondary();
+    }
+    if (state.preloadedSecondary === secondary) {
+      state.preloadedSecondary = null;
+    }
+    revealPreloadedCharacter(secondary);
+    disposeSecondaryCharacter();
+    state.secondaryContainer = secondary.container;
+    state.secondaryModel = secondary.model;
+    state.secondaryModelIndex = secondaryIndex;
+    state.secondaryModelUrl = secondary.url;
+    setCameraForModel([
+      ...state.container.meshes,
+      ...state.secondaryContainer.meshes,
+    ], 1.72);
+
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    post("dual-models-loaded", {
+      primary: describeActiveCharacter(state.modelIndex, state.modelUrl, state.container, state.model),
+      secondary: describeLoadedCharacter(secondary),
+      requestId,
+    });
+  } catch (error) {
+    disposeLoadedCharacter(secondary);
+    throw error;
+  }
+}
+
+async function preloadSecondaryCharacter(primaryIndex, secondaryIndex, secondaryUrl) {
+  if (!runtime || !state.model || !state.container || state.modelIndex !== primaryIndex || state.secondaryModel) {
+    return;
+  }
+
+  const normalizedSecondaryUrl = normalizeModelUrl(secondaryUrl);
+  if (state.preloadedSecondary
+      && state.preloadedSecondary.index === secondaryIndex
+      && state.preloadedSecondary.url === normalizedSecondaryUrl) {
+    return;
+  }
+
+  if (state.secondaryPreloadPromise
+      && state.secondaryPreloadIndex === secondaryIndex
+      && state.secondaryPreloadUrl === normalizedSecondaryUrl) {
+    await state.secondaryPreloadPromise;
+    return;
+  }
+
+  const primaryModelAtStart = state.model;
+  const primaryContainerAtStart = state.container;
+  const preloadPromise = loadCharacterAsset(secondaryIndex, normalizedSecondaryUrl)
+    .then((loaded) => {
+      if (state.model !== primaryModelAtStart
+          || state.container !== primaryContainerAtStart
+          || state.secondaryModel) {
+        disposeLoadedCharacter(loaded);
+        return null;
+      }
+
+      hidePreloadedCharacter(loaded);
+      state.preloadedSecondary = loaded;
+      return loaded;
+    });
+  state.secondaryPreloadPromise = preloadPromise;
+  state.secondaryPreloadIndex = secondaryIndex;
+  state.secondaryPreloadUrl = normalizedSecondaryUrl;
+  try {
+    await preloadPromise;
+  } finally {
+    if (state.secondaryPreloadPromise === preloadPromise) {
+      state.secondaryPreloadPromise = null;
+      state.secondaryPreloadIndex = -1;
+      state.secondaryPreloadUrl = "";
+    }
+  }
+}
+
+async function loadDualMotion(name, primaryUrl, secondaryUrl, startFrame = 0, requestId) {
   if (!runtime || !vmdLoader || !state.model || !state.secondaryModel) {
     throw new Error("Load the two characters before loading a dual motion.");
   }
@@ -721,6 +884,8 @@ async function loadDualMotion(name, primaryUrl, secondaryUrl, startFrame = 0) {
   state.loopEndFrame = 0;
   state.userPauseRequested = false;
   runtime.pauseAnimation();
+  const primaryModelAtStart = state.model;
+  const secondaryModelAtStart = state.secondaryModel;
   const [primaryLoaded, secondaryLoaded] = await Promise.all([
     loadCachedMotion(`${name}-primary`, primaryUrl),
     loadCachedMotion(`${name}-secondary`, secondaryUrl),
@@ -735,6 +900,10 @@ async function loadDualMotion(name, primaryUrl, secondaryUrl, startFrame = 0) {
     rootOffset: secondaryRootOffset,
     visibilityTrackNormalized: secondaryVisibilityTrackNormalized,
   } = secondaryLoaded;
+
+  if (state.model !== primaryModelAtStart || state.secondaryModel !== secondaryModelAtStart) {
+    throw new Error("The active characters changed while loading the dual motion.");
+  }
 
   if (state.motionHandle) {
     state.model.destroyRuntimeAnimation(state.motionHandle);
@@ -773,6 +942,7 @@ async function loadDualMotion(name, primaryUrl, secondaryUrl, startFrame = 0) {
     secondaryRootOffset,
     primaryVisibilityTrackNormalized,
     secondaryVisibilityTrackNormalized,
+    requestId,
   });
 }
 
@@ -801,6 +971,18 @@ async function loadCachedMotion(name, url) {
   });
   state.motionLoadPromises.set(normalizedUrl, loadPromise);
   return loadPromise;
+}
+
+async function preloadDualMotion(name, primaryUrl, secondaryUrl) {
+  if (!vmdLoader) {
+    throw new Error("The VMD loader is still initializing.");
+  }
+
+  await Promise.all([
+    loadCachedMotion(`${name}-primary`, primaryUrl),
+    loadCachedMotion(`${name}-secondary`, secondaryUrl),
+  ]);
+  post("dual-motion-preloaded", { name });
 }
 
 async function loadCharacterAsset(index, url) {
@@ -839,6 +1021,48 @@ function disposeLoadedCharacter(loaded) {
   loaded.container.dispose();
 }
 
+function hidePreloadedCharacter(loaded) {
+  loaded.preloadVisibility = loaded.container.meshes.map((mesh) => mesh.isVisible);
+  for (const mesh of loaded.container.meshes) {
+    mesh.isVisible = false;
+  }
+}
+
+function revealPreloadedCharacter(loaded) {
+  if (!loaded.preloadVisibility) {
+    return;
+  }
+  loaded.container.meshes.forEach((mesh, index) => {
+    mesh.isVisible = loaded.preloadVisibility[index] ?? true;
+  });
+  loaded.preloadVisibility = null;
+}
+
+function disposePreloadedSecondary() {
+  if (state.preloadedSecondary) {
+    disposeLoadedCharacter(state.preloadedSecondary);
+  }
+  state.preloadedSecondary = null;
+  state.secondaryPreloadPromise = null;
+  state.secondaryPreloadIndex = -1;
+  state.secondaryPreloadUrl = "";
+}
+
+function disposeSecondaryCharacter() {
+  if (state.secondaryModel && runtime) {
+    runtime.destroyMmdModel(state.secondaryModel);
+  }
+  if (state.secondaryContainer) {
+    state.secondaryContainer.removeAllFromScene();
+    state.secondaryContainer.dispose();
+  }
+  state.secondaryModel = null;
+  state.secondaryContainer = null;
+  state.secondaryMotionHandle = null;
+  state.secondaryModelIndex = -1;
+  state.secondaryModelUrl = "";
+}
+
 function describeLoadedCharacter(loaded) {
   const { index, url, container, metadata } = loaded;
   return {
@@ -855,6 +1079,21 @@ function describeLoadedCharacter(loaded) {
     rigidBodyCount: metadata.rigidBodies.length,
     jointCount: metadata.joints.length,
   };
+}
+
+function describeActiveCharacter(index, url, container, model) {
+  const rootMesh = container?.meshes.find((mesh) => MmdMesh.isMmdSkinnedMesh(mesh));
+  if (!rootMesh || !container || !model) {
+    throw new Error("The active character is not fully loaded.");
+  }
+  return describeLoadedCharacter({
+    index,
+    url,
+    container,
+    model,
+    rootMesh,
+    metadata: rootMesh.metadata,
+  });
 }
 
 function normalizeMotionRoot(motion) {
@@ -910,13 +1149,14 @@ window.chrome?.webview?.addEventListener("message", async (event) => {
   try {
     switch (message.type) {
       case "load-character":
-        await loadCharacter(message.index, message.url);
+        await loadCharacter(message.index, message.url, message.requestId);
         break;
       case "load-motion":
         await loadMotion(
           message.name ?? "desktop-pet-motion",
           message.url,
           Boolean(message.loop),
+          message.requestId,
         );
         break;
       case "load-dual-character":
@@ -925,7 +1165,49 @@ window.chrome?.webview?.addEventListener("message", async (event) => {
           message.primaryUrl,
           Number(message.secondaryIndex),
           message.secondaryUrl,
+          message.requestId,
         );
+        break;
+      case "load-secondary-character":
+        await loadSecondaryCharacter(
+          Number(message.primaryIndex),
+          Number(message.secondaryIndex),
+          message.secondaryUrl,
+          message.requestId,
+        );
+        break;
+      case "preload-secondary-character":
+        try {
+          await preloadSecondaryCharacter(
+            Number(message.primaryIndex),
+            Number(message.secondaryIndex),
+            message.secondaryUrl,
+          );
+        } catch (error) {
+          const exception = error instanceof Error ? error : new Error(String(error));
+          // Idle preloading is opportunistic and must never surface as a
+          // foreground load failure.
+          post("secondary-character-preload-failed", {
+            message: exception.message,
+          });
+        }
+        break;
+      case "preload-dual-motion":
+        try {
+          await preloadDualMotion(
+            message.name ?? "desktop-pet-dual-motion",
+            message.primaryUrl,
+            message.secondaryUrl,
+          );
+        } catch (error) {
+          const exception = error instanceof Error ? error : new Error(String(error));
+          // Preloading is opportunistic. Do not turn a background cache miss
+          // into a failure for the foreground model/motion request.
+          post("dual-motion-preload-failed", {
+            name: message.name ?? "desktop-pet-dual-motion",
+            message: exception.message,
+          });
+        }
         break;
       case "load-dual-motion":
         await loadDualMotion(
@@ -933,28 +1215,30 @@ window.chrome?.webview?.addEventListener("message", async (event) => {
           message.primaryUrl,
           message.secondaryUrl,
           message.startFrame,
+          message.requestId,
         );
         break;
       case "load-music":
-        await loadMusic(message.url);
+        await loadMusic(message.url, message.requestId);
         break;
       case "clear-music":
-        await loadMusic("");
+        await loadMusic("", message.requestId);
         break;
       case "set-skin-tone":
-        setDesktopBodyTone(message.tone);
+        setDesktopBodyTone(message.tone, message.requestId);
         break;
       case "set-morph":
         const morphResult = applyMorph(Number(message.index), Number(message.weight));
         post("morph-updated", {
           index: Number(message.index),
           weight: Number(message.weight),
+          requestId: message.requestId,
           ...morphResult,
         });
         break;
       case "reset-morphs":
         resetMorphs();
-        post("morphs-reset");
+        post("morphs-reset", { requestId: message.requestId });
         break;
       case "play":
         state.userPauseRequested = false;
@@ -973,6 +1257,7 @@ window.chrome?.webview?.addEventListener("message", async (event) => {
       operation: message.type,
       message: exception.message,
       stack: exception.stack ?? "",
+      requestId: message.requestId,
     });
   }
 });

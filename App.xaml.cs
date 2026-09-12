@@ -357,6 +357,21 @@ public partial class App : System.Windows.Application
             }
 
             await window.LoadCharacterAsync(0);
+            var preloadProbe = window.DanceMotions.FirstOrDefault(dance => dance.Key == "erotic-hip-duo");
+            if (preloadProbe is not null
+                && File.Exists(window.GetDanceMotionPath(preloadProbe))
+                && window.GetSecondaryDanceMotionPath(preloadProbe) is { } preloadSecondaryPath
+                && File.Exists(preloadSecondaryPath))
+            {
+                File.AppendAllText(tracePath, "before-incremental-dual" + Environment.NewLine);
+                window.BeginSecondaryCharacterPreload(0, 1);
+                window.BeginDualMotionPreload(preloadProbe);
+                var incrementalDualModels = await window.LoadSecondaryCharacterAsync(0, 1);
+                ValidateModel(incrementalDualModels.GetProperty("primary"), expectedIndex: 0);
+                ValidateModel(incrementalDualModels.GetProperty("secondary"), expectedIndex: 1);
+                File.AppendAllText(tracePath, "after-incremental-dual" + Environment.NewLine);
+            }
+
             foreach (var dance in window.DanceMotions)
             {
                 var motionPath = window.GetDanceMotionPath(dance);

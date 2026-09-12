@@ -6,7 +6,8 @@
 
 | 菜单名称 | VMD | 来源与作者 | 备注 |
 | --- | --- | --- | --- |
-| Snow Halation | `snow-halation-natsuki/nac_snow_halation/nac_snow_halation.vmd` | 随原始动作包附带的说明；动作作者：なつき | 原包说明要求根据音乐对齐起始帧，并提醒非原适配模型可能需要调整。 |
+| 大好きなSnow halation | `snow-halation-natsuki/nac_snow_halation/nac_snow_halation.vmd` | 用户指定来源：`ss46474765`；本机动作包说明；动作作者：なつき | 原包说明要求根据音乐对齐起始帧，并提醒非原适配模型可能需要调整。 |
+| アニサマ2022「Sparkle」 | `sparkle-dual/sparkle-left.vmd` + `sparkle-dual/sparkle-right.vmd` | 用户指定来源：`ss46421758`；[BowlRoll 284475](https://bowlroll.net/file/284475)；动作作者：松山じろべえ | Hime 使用左位、Mikoto 使用右位。原包允许修改，但禁止未经许可再分发和商业使用；本机只接入左右身体动作。 |
 | Helltaker（循环舞） | `helltaker/Helltaker_like_dance_1min_1.vmd` | [BowlRoll 243140](https://bowlroll.net/file/243140)；作者：DiSK | 随包 `readme.txt` 标注 CC0 1.0 Universal；另含可选气球素材，本程序没有加载它。 |
 | Telepathy（上半身） | `telepathy/P_Telepathy_motion_/Telepathy1235.vmd` | [P-nez 动作页](https://p-nez.net/telepathy)；动作：P-nez | 随包要求保留 P-nez、音乐和编舞参考署名；必需骨骼包含 groove、upperbody2、腕捩和拇指 0。 |
 | Beyond the way（力量感） | `beyond-the-way/P_BeyondTW_Motion/BeyoudTW_motion.vmd` | [P-nez 动作页](https://p-nez.net/beyondtw)；动作：P-nez | 原作者说明该动作按特定模型调整；本程序只验证标准骨骼可用部分。 |
@@ -16,8 +17,7 @@
 | Erotic Hip-Shaking Duo（双人） | `erotic-hip-duo/EroHipDuoDance_Model-L_Motion.vmd` + `erotic-hip-duo/EroHipDuoDance_Model-R_Motion.vmd` | 用户提供的 `EroticHipShakingDuoDance エロ腰振りデュオダンス (V1.0.2).zip`；动作：CraftieMMD | 随包 `readme.txt` 允许修改和 R18 使用，但禁止未经许可再分发动作数据。本程序只接入两套身体动作；面部、镜头和持杆附加 VMD 均保留在原目录，未自动套用到 Hime / Mikoto。当前仅作本机使用。 |
 | 腰振り舞（诱惑） | `waist-dance/waist-dance-loop.vmd`（由原 `waist-dance-ik.vmd` 生成） | [动作介绍视频](https://www.youtube.com/watch?v=ueAl9Eoy7OI)；动作：綾野 鷹，发布：yoshxmmd | 原公开包只含两份 VMD、未附完整条款文件；加长文件只做前后往返拼接以避免短循环接缝，当前仅作为本机测试素材，暂不对外发布。 |
 | Rust Veins 腰振舞 | `rust-veins/motion 1.vmd`；原包同时保留 `motion 2.vmd`、面部和镜头 VMD | 原用户提供压缩包；动作：TottyMMD（totozoMMD）；随包 `rust-veins/readme.txt` | `motion 1.vmd` 从开头就有可见身体关键帧，适合桌宠点击即播；原包允许自行修改，但提醒不同模型可能需要修正。当前仅作本机使用，不把动作包重新上传或单独发布；未自动接入镜头、面部 VMD 或 BGM。 |
-| つよっ！（单人） | `requested/tsuyoi/tsuyoi.vmd` | [BowlRoll 345944](https://bowlroll.net/file/345944)；动作：イースアリシア；乐曲：NEKOZUME feat. 最上もが | 随包要求署名；禁止再分发、商业使用和 R18。当前仅在本机接入菜单。 |
-| Tick-Trick（Rick式） | `requested/tick-trick/Tick-Trick.vmd` | [BowlRoll 308751](https://bowlroll.net/file/308751)；动作：Rick；乐曲作者：前線 | 条款禁止 R15 以上、暴露度高的模型和商业使用，并禁止再分发；当前仅在本机接入菜单。 |
+| 爱♡スクリ〜ム！ | `requested/love-scream/love-scream.vmd`（待下载） | 用户指定来源：`ss46752642`；[BowlRoll 358490](https://bowlroll.net/file/358490) | 下载页需要账号登录；当前只在菜单中显示为待补动作，不用其它 VMD 冒充。 |
 
 ## 素材库保留、暂不接入菜单
 
@@ -33,4 +33,4 @@
 - Helltaker 动作包自己的 `readme.txt` 标注 CC0 1.0 Universal；本目录仍保留来源链接和原包说明，避免把动作作者、音乐或附属素材的权利混为一谈。
 - 当前集成目标是用户本机运行，不把这些动作素材打包成对外发布的安装包。
 - `waist-dance-loop.vmd` 是本项目基于本地原始 VMD 的派生循环文件；原始 `waist-dance.vmd` 与 `waist-dance-ik.vmd` 均保留不变。
-- `つよっ` 与 `Tick-Trick` 的 VMD 仍保留各自下载包和原始说明；如果程序要对外发布，必须重新核对条款并改为由用户自行放入本地动作目录。
+- `爱♡スクリ〜ム！` 的动作文件仍待从原页面取得；在取得前不把其它舞蹈误标为该动作。
