@@ -19,9 +19,6 @@ The ready-to-run [v0.1.0 portable package](https://github.com/ewanyuan/HimeMikot
 
 After downloading, extract the whole archive and double-click `HimeMikotoDesktopNative.exe`.
 
-不要下载 **Code → Download ZIP** 来启动桌宠；那是源码。也不要只复制 exe 文件，便携包里的文件必须保留在一起。
-
-Do not use **Code → Download ZIP** to start the pet; that is source code. Do not copy only the exe—the portable package must remain together.
 
 如果启动时提示缺少 WebView2，请安装 Microsoft Edge WebView2 Runtime 后重新启动。Windows 10/11 x64 是当前支持目标。
 
