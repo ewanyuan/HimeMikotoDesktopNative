@@ -297,19 +297,6 @@ public partial class MainWindow : Window
         _danceMotions =
         [
             new(
-                "love-scream",
-                "爱♡スクリ〜ム！",
-                "Ai♡Scream!",
-                Path.Combine(
-                    "HimeMikotoDesktopNative",
-                    "assets",
-                    "motions",
-                    "requested",
-                    "love-scream",
-                    "love-scream.vmd"),
-                UsageNote: "用户指定来源：ss46752642；原 BowlRoll 358490 动作页需要账号登录后下载。",
-                UnavailableNote: "动作文件尚未放入本地目录；没有用其它动作冒充。"),
-            new(
                 "snow-halation",
                 "大好きなSnow halation",
                 "Daisuki na Snow halation",
@@ -448,6 +435,18 @@ public partial class MainWindow : Window
                     "motion 1.vmd"),
                 UsageNote: "动作作者 TottyMMD（totozoMMD）；仅作本机使用，使用前请保留随包 readme.txt 并自行确认发布范围。"),
             new(
+                "tsuyoi",
+                "つよっ！（单人）",
+                "Tsuyoi! (solo)",
+                Path.Combine(
+                    "HimeMikotoDesktopNative",
+                    "assets",
+                    "motions",
+                    "requested",
+                    "tsuyoi",
+                    "tsuyoi.vmd"),
+                UsageNote: "非商业使用；禁止 R18、再分发或转交动作文件。"),
+            new(
                 "inmu-king",
                 "INMU KING（动作待补）",
                 "INMU KING (motion pending)",
@@ -459,6 +458,18 @@ public partial class MainWindow : Window
                     "inmu-king",
                     "INMU-KING.vmd"),
                 UnavailableNote: "原视频未公开可核验的 VMD 动作文件，暂不伪造动作。"),
+            new(
+                "tick-trick",
+                "Tick-Trick（Rick式）",
+                "Tick-Trick (Rick)",
+                Path.Combine(
+                    "HimeMikotoDesktopNative",
+                    "assets",
+                    "motions",
+                    "requested",
+                    "tick-trick",
+                    "Tick-Trick.vmd"),
+                UsageNote: "非商业、非 R15；禁止再分发，且需保留乐曲作者前線的署名。"),
             new(
                 "oppai-fukkireta",
                 "Oppai Fukkireta（授权待定）",
@@ -1209,58 +1220,23 @@ public partial class MainWindow : Window
     private void BuildDanceMenu()
     {
         var availableCount = 0;
-        var visibleDances = _danceMotions
-            .Where(dance =>
-            {
-                var path = GetDanceMotionPath(dance);
-                var secondaryPath = GetSecondaryDanceMotionPath(dance);
-                var isAvailable = File.Exists(path)
-                    && (secondaryPath is null || File.Exists(secondaryPath));
-                return isAvailable || IsNewDance(dance);
-            })
-            .OrderByDescending(IsNewDance)
-            .ToArray();
-        var newDanceCount = _danceMotions.Count(IsNewDance);
-        var newDanceHeaderAdded = false;
-        var existingDanceSeparatorAdded = false;
-
-        foreach (var dance in visibleDances)
+        foreach (var dance in _danceMotions)
         {
             var path = GetDanceMotionPath(dance);
             var secondaryPath = GetSecondaryDanceMotionPath(dance);
             var isAvailable = File.Exists(path)
                 && (secondaryPath is null || File.Exists(secondaryPath));
-            var musicPath = GetDanceMusicPath(dance);
-            var isNewDance = IsNewDance(dance);
-            if (isNewDance && !newDanceHeaderAdded)
-            {
-                AddDisabledItem(
-                    _danceMenu,
-                    Text($"新增舞蹈（{newDanceCount}）", $"New dances ({newDanceCount})"));
-                newDanceHeaderAdded = true;
-            }
-            else if (!isNewDance && newDanceHeaderAdded && !existingDanceSeparatorAdded)
-            {
-                _danceMenu.Items.Add(new Separator());
-                existingDanceSeparatorAdded = true;
-            }
-
             if (!isAvailable)
             {
-                var unavailableHeader = (isNewDance ? Text("【新增】", "[NEW] ") : string.Empty)
-                    + Text(dance.ChineseName, dance.EnglishName)
-                    + Text("（动作文件待下载）", " (motion file pending)");
-                var notes = new[] { dance.UsageNote, dance.UnavailableNote }
-                    .Where(note => !string.IsNullOrWhiteSpace(note));
-                AddDisabledItem(_danceMenu, unavailableHeader, string.Join(Environment.NewLine, notes));
                 continue;
             }
+
+            var musicPath = GetDanceMusicPath(dance);
 
             availableCount++;
             var item = new MenuItem
             {
-                Header = (isNewDance ? Text("【新增】", "[NEW] ") : string.Empty)
-                    + Text(dance.ChineseName, dance.EnglishName)
+                Header = Text(dance.ChineseName, dance.EnglishName)
                     + (musicPath is null ? string.Empty : Text("（有本地音乐）", " (local music)")),
                 Tag = dance,
                 IsEnabled = true,
@@ -1302,11 +1278,6 @@ public partial class MainWindow : Window
         {
             AddDisabledItem(_danceMenu, Text("暂无可用舞蹈", "No dance motion is available"));
         }
-    }
-
-    private static bool IsNewDance(DanceMotionDefinition dance)
-    {
-        return dance.Key is "love-scream" or "snow-halation" or "sparkle-dual";
     }
 
     private async void OnSkinToneMenuClick(object? sender, RoutedEventArgs e)
@@ -1967,13 +1938,12 @@ public partial class MainWindow : Window
             && activeIndex == index;
     }
 
-    private void AddDisabledItem(MenuItem parent, string header, string? toolTip = null)
+    private void AddDisabledItem(MenuItem parent, string header)
     {
         var item = new MenuItem
         {
             Header = header,
             IsEnabled = false,
-            ToolTip = string.IsNullOrWhiteSpace(toolTip) ? null : toolTip,
         };
         ConfigureMenuItem(item);
         parent.Items.Add(item);
